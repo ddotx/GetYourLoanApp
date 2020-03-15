@@ -53,7 +53,7 @@ function initializeLoans() {
 
 function create_UUID(){
     var dt = new Date().getTime();
-    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = (dt + Math.random()*16)%16 | 0;
         dt = Math.floor(dt/16);
         return (c=='x' ? r :(r&0x3|0x8)).toString(16);
@@ -73,9 +73,9 @@ function bindLoansToDropDown() {
 
 
     for (var i = 0; i < LoanApplicationList.length; i++) {
-        var la = LoanApplicationList[i];
+        let la = LoanApplicationList[i];
 
-        var el = document.createElement("option");
+        let el = document.createElement("option");
         el.textContent = "Application of " + la.ApplicantName;
         el.value = la.Id.toString();
         dropDown.appendChild(el);
@@ -90,11 +90,16 @@ function loadApplication() {
 
     if (la != undefined) {
 
-        var isEmployed = la.Factors[0];
-        var hasKids = la.Factors[1];
-        var hasLoans = la.Factors[2];
-        var hasCreditcards = la.Factors[3];
-
+        // var isEmployed = la.Factors[0];
+        // var hasKids = la.Factors[1];
+        // var hasLoans = la.Factors[2];
+        // var hasCreditcards = la.Factors[3];
+        var [
+            isEmployed, 
+            hasKids, 
+            hasLoans, 
+            hasCreditcards
+        ] = la.Factors;
 
         document.getElementById("inputName").value = la.ApplicantName;
         document.getElementById("inputDoBMonth").value = la.ApplicantDateOfBirth.getMonth() + 1;
@@ -111,7 +116,8 @@ function loadApplication() {
 
         var riskLabel = document.getElementById("riskSummary");
         riskLabel.style.display = "block";
-        riskLabel.innerText = generateRickProfile(la); 
+        // riskLabel.innerText = generateRickProfile(la); 
+        riskLabel.innerHTML = generateRickProfile(la); 
 
     }
 }
@@ -190,7 +196,11 @@ function getLoanApplicationDataFromInputs() {
     la.Factors[2] = hasLoans;
     la.Factors[3] = hasCreditcards;    
 
-    if (month != "" && day != "" && year != "") {
+    /* if (month != "" && day != "" && year != "") {
+        la.ApplicantDateOfBirth = new Date(year, month, day);
+    } */
+    if (Number.isInteger(month) && Number.isInteger(day)
+    && Number.isInteger(year)) {
         la.ApplicantDateOfBirth = new Date(year, month, day);
     }
 
@@ -264,6 +274,8 @@ function generateRickProfile(la) {
     var risk = 3;
 
     var nameAndTitle = la.ApplicantName;
+    // var nameAndTitle = la.ApplicantName.trim().toLowerCase();
+    
 
     var indexOfMD = nameAndTitle.search("MD");
     var indexOfMD2 = nameAndTitle.search("M.D");
@@ -280,6 +292,19 @@ function generateRickProfile(la) {
 
         risk = risk - 1;
     }
+    // todo
+    // let dr = nameAndTitle.startsWith("dr")
+    // let dr = nameAndTitle.startsWith("dr")
+    // let dr = nameAndTitle.startsWith("dr")
+
+    // let dr = nameAndTitle.endsWith("dr")
+    // let dr = nameAndTitle.endsWith("dr")
+    // let dr = nameAndTitle.endsWith("dr")
+
+    // if (dr || phd || phd2 || md || md2 || md3) {
+    //     risk = risk - 1;
+    // }
+
 
     var age = new Date().getFullYear() - 
         la.ApplicantDateOfBirth.getFullYear();
@@ -308,29 +333,34 @@ function generateRickProfile(la) {
         risk = risk + 1;
     }
 
-    var purpose = la.LoanPurpose;
+    // var purpose = la.LoanPurpose;
+    var purpose = la.LoanPurpose.trim().toLowerCase();
 
-    var indexOfHouse = purpose.search("House");
+/*     var indexOfHouse = purpose.search("House");
     var indexOfHouse2 = purpose.search("house");
     var indexOfHoliday = purpose.search("Holiday");
     var indexOfHoliday2 = purpose.search("holiday");
     var indexOfHoliday3 = purpose.search("vacation");
     var indexOfHoliday4 = purpose.search("Vacation");
     var indexOfBusiness = purpose.search("Business");
-    var indexOfBusiness2 = purpose.search("business");
+    var indexOfBusiness2 = purpose.search("business"); */
 
-    if (indexOfHouse > -1 || indexOfHouse2 > -1) {
+    let house = purpose.includes("house");
+    let holiday = purpose.includes("holiday");
+    let vacation = purpose.includes("vacation");
+    let business = purpose.includes("business");
+
+    if (house) {
         //the loan will be used for a house or building project
         risk = risk + 2;
     }
 
-    if (indexOfHoliday > -1 || indexOfHoliday2 > -1 
-        || indexOfHoliday3 > -1 || indexOfHoliday4 > -1) {
+    if (holiday || vacation) {
         //the loan will be used for a holiday
         risk = risk + 3;
     }
 
-    if (indexOfBusiness > -1 || indexOfBusiness2 > -1) {
+    if (business) {
         //the loan will be used for a business
         risk = risk + 1;
     }
@@ -339,9 +369,9 @@ function generateRickProfile(la) {
     var reviewText = "";
 
     if (age < 18) {
-        reviewText = "your application will not be reviewed, because you have to be 18 years or older.";
+        reviewText = "will not be reviewed, because you have to be 18 years or older.";
     } else {
-        reviewText = "your application will be reviewed.";
+        reviewText = "will be reviewed.";
     }
 
     var riskProfile = "";
@@ -356,9 +386,37 @@ function generateRickProfile(la) {
         riskProfile = "high";
     }
 
-    var summaryText = "Dear " + la.ApplicantName + ", " + reviewText + " Your risk profile is " + riskProfile;
+    var applicationCode = String.raw `\t${createApplicationId()}`
+
+    // todo - Using tagged template literals
+    var summaryText = highlighText `Dear ${la.ApplicantName}, <br>
+    your application for ${"$" + la.LoanAmount}, ${reviewText}. <br>
+    Your risk profile is ${riskProfile} <br>
+    Your unique application code is ${applicationCode}`;
+    // \t == create tab in html --> use string.raw to render everything in string
 
     return summaryText;
+}
+
+function highlighText(strings, ...values) {
+    let str = '';
+    for(var i=0 ; i < strings.raw.length; i++) {
+        if(i>0) {
+            str += `<b>${values[i-1]}</b>`
+        }
+        str += strings.raw[i];
+    }
+    return str;
+}
+
+function createApplicationId() {
+    var result = '';
+    var characters = 'ABCDEUVYZabcdrswxyz01789/\\#@$%()*^!';
+    var charactersLength = characters.length;
+    for (var i=0 ; i<8 ; i++) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength))
+    }
+    return result;
 }
 
 
